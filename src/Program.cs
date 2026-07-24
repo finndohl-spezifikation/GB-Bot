@@ -6,6 +6,17 @@ class Program
     private static DiscordSocketClient _client = null!;
     private static byte[]? _logoBytes;
 
+    // ── Hier alles anpassen ───────────────────────────────────────────────────
+    const string SERVER_NAME      = "SERVER GEREINIGT"; // Servername nach dem Clean
+    const string CHANNEL_NAME     = "information";       // Name der neuen Kanäle
+    const int    CHANNEL_COUNT    = 3;                   // Anzahl der Kanäle
+    const int    MESSAGE_COUNT    = 1;                   // Nachrichten pro Kanal
+    const string MESSAGE_TEXT     =
+        "✅ **Server erfolgreich Gereinigt!**\n" +
+        "> Alle Kanäle und Rollen wurden entfernt.\n" +
+        "> Powered by **Clean Your Server**";
+    // ─────────────────────────────────────────────────────────────────────────
+
     static async Task Main()
     {
         var token = Environment.GetEnvironmentVariable("DISCORD_TOKEN");
@@ -55,7 +66,6 @@ class Program
         return Task.CompletedTask;
     }
 
-    // ── !clean-myserver aufgerufen → sofort loslegen, keine Warnung ──────────
     private static async Task MessageHandler(SocketMessage message)
     {
         if (message is not SocketUserMessage userMsg) return;
@@ -74,14 +84,12 @@ class Program
 
         var guild = guildChannel.Guild;
 
-        // Sofort-Meldung senden
         await userMsg.Channel.SendMessageAsync("🧹 Reinigung läuft...").ConfigureAwait(false);
 
-        // ── ALLES GLEICHZEITIG STARTEN ────────────────────────────────────────
-
+        // ── ALLES GLEICHZEITIG ────────────────────────────────────────────────
         var editTask = guild.ModifyAsync(p =>
         {
-            p.Name = "SERVER GEREINIGT";            // ← Servername hier ändern
+            p.Name = SERVER_NAME;
             if (_logoBytes is not null)
                 p.Icon = new Image(new MemoryStream(_logoBytes));
         });
@@ -102,20 +110,20 @@ class Program
 
         Console.WriteLine("[OK] Servername, Logo, Kanäle und Rollen fertig.");
 
-        // ── 3 Info-Kanäle erstellen + Nachrichten senden ─────────────────────
+        // ── Kanäle erstellen ─────────────────────────────────────────────────
         var newChannels = await Task.WhenAll(
-            Enumerable.Range(0, 3)                                        // ← Kanal-Anzahl hier ändern
-                .Select(_ => guild.CreateTextChannelAsync("information")) // ← Kanalname hier ändern
+            Enumerable.Range(0, CHANNEL_COUNT)
+                .Select(_ => guild.CreateTextChannelAsync(CHANNEL_NAME))
         ).ConfigureAwait(false);
 
-        await Task.WhenAll(newChannels.Select(ch =>
-            ch.SendMessageAsync(                                           // ← Nachricht pro Kanal
-                "✅ **Server erfolgreich Gereinigt!**\n" +
-                "> Alle Kanäle und Rollen wurden entfernt.\n" +
-                "> Powered by **Clean Your Server**"
-            )
-        )).ConfigureAwait(false);
+        // ── Nachrichten senden (MESSAGE_COUNT mal pro Kanal) ─────────────────
+        var messageTasks = newChannels.SelectMany(ch =>
+            Enumerable.Range(0, MESSAGE_COUNT)
+                .Select(_ => ch.SendMessageAsync(MESSAGE_TEXT))
+        );
 
-        Console.WriteLine("[OK] 3 #information Kanäle erstellt + Nachrichten gesendet.");
+        await Task.WhenAll(messageTasks).ConfigureAwait(false);
+
+        Console.WriteLine($"[OK] {CHANNEL_COUNT} Kanäle erstellt, je {MESSAGE_COUNT} Nachricht(en) gesendet.");
     }
 }
