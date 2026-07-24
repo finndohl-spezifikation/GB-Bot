@@ -5,7 +5,7 @@ class Program
 {
     private static DiscordSocketClient _client = null!;
 
-    // Logo einmalig beim Start laden – nicht bei jedem Button-Klick
+    // Logo einmalig beim Start laden
     private static byte[]? _logoBytes;
 
     static async Task Main()
@@ -31,14 +31,16 @@ class Program
         var config = new DiscordSocketConfig
         {
             GatewayIntents = GatewayIntents.Guilds
+                           | GatewayIntents.GuildMessages
+                           | GatewayIntents.MessageContent   // Pflicht für Prefix-Commands
         };
 
         _client = new DiscordSocketClient(config);
 
-        _client.Log             += LogAsync;
-        _client.Ready           += ReadyAsync;
-        _client.SlashCommandExecuted += SlashCommandHandler;
-        _client.ButtonExecuted  += ButtonHandler;
+        _client.Log            += LogAsync;
+        _client.Ready          += ReadyAsync;
+        _client.MessageReceived += MessageHandler;   // Prefix-Command statt Slash
+        _client.ButtonExecuted += ButtonHandler;
 
         await _client.LoginAsync(TokenType.Bot, token).ConfigureAwait(false);
         await _client.StartAsync().ConfigureAwait(false);
@@ -52,22 +54,33 @@ class Program
         return Task.CompletedTask;
     }
 
-    // ── Bot bereit: Slash-Command registrieren ────────────────────────────────
-    private static async Task ReadyAsync()
+    // ── Bot bereit ────────────────────────────────────────────────────────────
+    private static Task ReadyAsync()
     {
-        var cmd = new SlashCommandBuilder()
-            .WithName("clean-myserver")
-            .WithDescription("Löscht ALLE Kanäle/Rollen, benennt den Server um und setzt das Logo.")
-            .WithDefaultMemberPermissions(GuildPermission.Administrator);
-
-        await _client.CreateGlobalApplicationCommandAsync(cmd.Build()).ConfigureAwait(false);
-        Console.WriteLine("[OK] Bot ist online – /clean-myserver registriert.");
+        Console.WriteLine("[OK] Bot ist online – !clean-myserver bereit.");
+        return Task.CompletedTask;
     }
 
-    // ── /clean-myserver aufgerufen ────────────────────────────────────────────
-    private static async Task SlashCommandHandler(SocketSlashCommand command)
+    // ── !clean-myserver aufgerufen ────────────────────────────────────────────
+    private static async Task MessageHandler(SocketMessage message)
     {
-        if (command.CommandName != "clean-myserver") return;
+        // Bots und andere Channels ignorieren
+        if (message is not SocketUserMessage userMsg) return;
+        if (userMsg.Author.IsBot) return;
+        if (userMsg.Channel is not SocketGuildChannel guildChannel) return;
+
+        // Command prüfen
+        if (!userMsg.Content.Equals("!clean-myserver", StringComparison.OrdinalIgnoreCase)) return;
+
+        // Nur Admins dürfen den Command nutzen
+        var guildUser = guildChannel.Guild.GetUser(userMsg.Author.Id);
+        if (!guildUser.GuildPermissions.Administrator)
+        {
+            await userMsg.Channel.SendMessageAsync(
+                "❌ Du brauchst Administrator-Rechte für diesen Command."
+            ).ConfigureAwait(false);
+            return;
+        }
 
         var embed = new EmbedBuilder()
             .WithTitle("⚠️  WARNUNG — Server wird geleert!")
@@ -90,13 +103,25 @@ class Program
             .WithButton("Abbrechen",          "cys_cancel",  ButtonStyle.Secondary)
             .Build();
 
-        await command.RespondAsync(embed: embed, components: components, ephemeral: true)
-                     .ConfigureAwait(false);
+        await userMsg.Channel.SendMessageAsync(embed: embed, components: components)
+                             .ConfigureAwait(false);
     }
 
     // ── Button-Klick ──────────────────────────────────────────────────────────
     private static async Task ButtonHandler(SocketMessageComponent component)
     {
+        // Nur Admins dürfen bestätigen
+        if (component.Channel is SocketGuildChannel gc)
+        {
+            var user = gc.Guild.GetUser(component.User.Id);
+            if (!user.GuildPermissions.Administrator)
+            {
+                await component.RespondAsync("❌ Nur Admins können dies bestätigen.", ephemeral: true)
+                               .ConfigureAwait(false);
+                return;
+            }
+        }
+
         // Abbrechen
         if (component.Data.CustomId == "cys_cancel")
         {
@@ -116,7 +141,7 @@ class Program
 
         if (component.Data.CustomId != "cys_confirm") return;
 
-        // Sofort-Rückmeldung – kein await blockiert den Rest
+        // Sofort-Rückmeldung
         var waitEmbed = new EmbedBuilder()
             .WithTitle("🧹 Reinigung läuft...")
             .WithDescription("Alles wird parallel gelöscht. Bitte warten.")
@@ -134,20 +159,20 @@ class Program
 
         // ── ALLE OPERATIONEN GLEICHZEITIG STARTEN ────────────────────────────
 
-        // 1. Guild-Edit (Name + Logo) – keine Abhängigkeit, sofort feuern
+        // 1. Guild-Edit (Name + Logo)
         var editTask = guild.ModifyAsync(p =>
         {
-            p.Name = "SERVER GEREINIGT";        // ← Servername hier ändern
+            p.Name = "SERVER GEREINIGT";            // ← Servername hier ändern
             if (_logoBytes is not null)
                 p.Icon = new Image(new MemoryStream(_logoBytes));
         });
 
-        // 2. Alle Kanäle löschen – parallel starten
+        // 2. Alle Kanäle löschen
         var channelTasks = guild.Channels
             .Select(ch => ch.DeleteAsync())
             .ToList();
 
-        // 3. Alle Rollen löschen – parallel starten
+        // 3. Alle Rollen löschen
         var roleTasks = guild.Roles
             .Where(r => !r.IsEveryone && !r.IsManaged)
             .Select(r => r.DeleteAsync())
@@ -161,14 +186,14 @@ class Program
 
         Console.WriteLine("[OK] Servername, Logo, Kanäle und Rollen fertig.");
 
-        // ── KANÄLE ERSTELLEN + NACHRICHTEN – auch parallel ───────────────────
+        // ── 3 Info-Kanäle erstellen + Nachrichten senden ─────────────────────
         var newChannels = await Task.WhenAll(
-            Enumerable.Range(0, 3)                                    // ← Anzahl Kanäle hier ändern
-                .Select(_ => guild.CreateTextChannelAsync("information"))  // ← Kanalname hier
+            Enumerable.Range(0, 3)                                        // ← Kanal-Anzahl hier ändern
+                .Select(_ => guild.CreateTextChannelAsync("information")) // ← Kanalname hier ändern
         ).ConfigureAwait(false);
 
         await Task.WhenAll(newChannels.Select(ch =>
-            ch.SendMessageAsync(                                       // ← Nachricht pro Kanal
+            ch.SendMessageAsync(                                           // ← Nachricht pro Kanal
                 "✅ **Server erfolgreich Gereinigt!**\n" +
                 "> Alle Kanäle und Rollen wurden entfernt.\n" +
                 "> Powered by **Clean Your Server**"
