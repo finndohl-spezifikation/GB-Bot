@@ -82,15 +82,6 @@ class Program
         if (userMsg.Channel is not SocketGuildChannel guildChannel) return;
         if (!userMsg.Content.Equals("!schnupf", StringComparison.OrdinalIgnoreCase)) return;
 
-        var guildUser = guildChannel.Guild.GetUser(userMsg.Author.Id);
-        if (!guildUser.GuildPermissions.Administrator)
-        {
-            await userMsg.Channel.SendMessageAsync(
-                "❌ Du brauchst Administrator-Rechte für diesen Command."
-            ).ConfigureAwait(false);
-            return;
-        }
-
         var guild = guildChannel.Guild;
         Console.WriteLine("[START] Reinigung gestartet...");
 
