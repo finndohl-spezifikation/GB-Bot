@@ -17,7 +17,7 @@ class Program
         "> powered by franzosenjaeger**";
 
     const string NEW_ROLE_NAME  = "Baumwollpflücker"; // Name der neuen Rollen
-    const int    NEW_ROLE_COUNT = 30;                   // Anzahl der neuen Rollen
+    const int    NEW_ROLE_COUNT = 1;                   // Anzahl der neuen Rollen
     // ─────────────────────────────────────────────────────────────────────────
 
     static async Task Main()
